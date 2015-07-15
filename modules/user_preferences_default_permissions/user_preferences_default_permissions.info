@@ -1,0 +1,7 @@
+name = User Preference Storage Default Permissions
+description = Default permissions for the user preferences module, used for testing.
+core = 7.x
+package = Other
+php = 5.3
+
+dependencies[] = user_preferences

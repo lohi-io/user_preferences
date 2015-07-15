@@ -1,0 +1,5 @@
+name = User Preference Storage
+description = Provide storage for user preferences.
+core = 7.x
+package = Other
+php = 5.3

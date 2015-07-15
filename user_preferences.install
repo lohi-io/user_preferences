@@ -1,0 +1,26 @@
+<?php
+/**
+ * @file
+ * Install schema and instructions for user_preferences.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function user_preferences_schema() {
+  $schema = array();
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function user_preferences_install() {
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function user_preferences_uninstall() {
+}
