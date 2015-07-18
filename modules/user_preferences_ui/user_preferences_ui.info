@@ -1,7 +1,0 @@
-name = User Preference Storage UI
-description = User interface for user preferences.
-core = 7.x
-package = Other
-php = 5.3
-
-dependencies[] = user_preferences
