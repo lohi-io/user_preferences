@@ -5,36 +5,17 @@
  * user_preferences.module
  */
 
-function hook_user_preferences() {
-  return array(
-    'enabled_notifications' => array(
-      'title' => t('Enabled notifications'),
-      // This should be "serialised" grumble grumble.
-      'serialize' => TRUE,
-      // Unserialised value plz.
-      'default_value' => array('email'),
-      'form_ids' => array('user_profile_form'),
-      // The form_item will pass whatever on to the form specified in the
-      // previous index.
-      'form_item' => array(
-        '#title' => t('Enabled notifications'),
-        '#type' => 'checkboxes',
-        '#required' => TRUE,
-        // Default value will be passed in by the user_preferences module.
-        '#options' => array(
-          'email' => t('Email'),
-          'sms' => t('SMS'),
-          'twitter' => t('Twitter'),
-        ),
-        '#weight' => 1,
-        '#access' => user_access('alter own comstack_notification settings'),
-      ),
-    ),
-  );
-}
-
 /**
  * Get all of the defined user preferences.
+ *
+ * @param $reset
+ *   Force a rebuild of the user preferences.
+ *
+ * @return
+ *   An array of preference definitions from all modules, passed through
+ *   drupal_alter. This array is cached so if you define new ones then you'll
+ *   need to clear the caches. When enabling or disabling modules rebuilds
+ *   happen automatically.
  */
 function user_preferences_definitions($reset = FALSE) {
   $preferences = &drupal_static(__FUNCTION__);
@@ -76,7 +57,21 @@ function user_preferences_definitions($reset = FALSE) {
 }
 
 /**
- * Get a single users preferences.
+ * Get a single users preferences. If there are 10 preferences and the user has
+ * set 5 and all preference definitions have default values you'll get 10 back
+ * with all of the gaps filled in for you.
+ *
+ * @param $uid
+ *   User ID of the user to get preferences for.
+ * @param $preference
+ *   The machine name of the preference to grab, if NULL return an array of all
+ *   the preferences.
+ * @param $reset
+ *   Force a rebuild of a users preferences, returned arrays are statically
+ *   cached.
+ *
+ * @return
+ *   An array of key/value pairs of user preferences.
  */
 function user_preferences($uid, $preference = NULL, $reset = FALSE) {
   $preferences = &drupal_static(__FUNCTION__, array());
@@ -121,7 +116,20 @@ function user_preferences($uid, $preference = NULL, $reset = FALSE) {
 }
 
 /**
- * Save a user preference.
+ * Save an array of user preferences.
+ *
+ * This function will take an array of preferences and save them to the DB.
+ * As new preferences can appear it will insert or update depending on if a
+ * value exists in the DB. This is also where if a preference stores data as a
+ * serialised string where that is done.
+ *
+ * @param $uid
+ *   The ID of the user who we're setting preference(s) for.
+ * @param $preferences
+ *   An array of preferences to commit to the database, key/value pairs.
+ *
+ * @return
+ *   Boolean true or false as to whether or not the preference(s) was saved.
  */
 function user_preferences_save($uid, $preferences) {
   if (empty($preferences)) {
@@ -195,6 +203,16 @@ function user_preferences_save($uid, $preferences) {
 
 /**
  * Save a single user preference.
+ *
+ * @param $uid
+ *   The ID of the user who we're setting preference(s) for.
+ * @param $preference_name
+ *   Machine name of the preference you want to set.
+ * @param $value
+ *   The value you want to set.
+ *
+ * @return
+ *   Boolean true or false as to whether or not the preference was saved.
  */
 function user_preferences_save_single($uid, $preference_name, $value) {
   return user_preferences_save($uid, array($preference_name => $value));
