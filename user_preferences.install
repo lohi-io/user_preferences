@@ -10,6 +10,39 @@
 function user_preferences_schema() {
   $schema = array();
 
+  $schema['user_preferences'] = array(
+    'description' => 'Storage for user preferences.',
+    'fields' => array(
+      'up_id' => array(
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique ID for this preference.',
+      ),
+      'name' => array(
+        'description' => 'The machine-readable name of this preference.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => 'The id of the user this preference belongs to.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'data' => array(
+        'description' => 'The value of this field, may be serialized for some preferences.',
+        'type' => 'text',
+        'size' => 'medium',
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('up_id'),
+    'indexes' => array(
+      'name' => array('name'),
+      'uid' => array('uid'),
+    ),
+  );
+
   return $schema;
 }
 
