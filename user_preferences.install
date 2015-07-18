@@ -29,17 +29,25 @@ function user_preferences_schema() {
         'type' => 'int',
         'not null' => TRUE,
       ),
-      'data' => array(
+      'value' => array(
         'description' => 'The value of this field, may be serialized for some preferences.',
         'type' => 'text',
         'size' => 'medium',
         'not null' => TRUE,
+      ),
+      'module' => array(
+        'description' => 'The name of the module that provides the preference.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
       ),
     ),
     'primary key' => array('up_id'),
     'indexes' => array(
       'name' => array('name'),
       'uid' => array('uid'),
+      'module' => array('module'),
     ),
   );
 
@@ -56,4 +64,5 @@ function user_preferences_install() {
  * Implements hook_uninstall().
  */
 function user_preferences_uninstall() {
+  variable_del('user_preferences_auto_add_form_items');
 }

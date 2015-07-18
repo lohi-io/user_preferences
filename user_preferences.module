@@ -4,3 +4,305 @@
  * @file
  * user_preferences.module
  */
+
+function hook_user_preferences() {
+  return array(
+    'enabled_notifications' => array(
+      'title' => t('Enabled notifications'),
+      // This should be "serialised" grumble grumble.
+      'serialize' => TRUE,
+      // Unserialised value plz.
+      'default_value' => array('email'),
+      'form_ids' => array('user_profile_form'),
+      // The form_item will pass whatever on to the form specified in the
+      // previous index.
+      'form_item' => array(
+        '#title' => t('Enabled notifications'),
+        '#type' => 'checkboxes',
+        '#required' => TRUE,
+        // Default value will be passed in by the user_preferences module.
+        '#options' => array(
+          'email' => t('Email'),
+          'sms' => t('SMS'),
+          'twitter' => t('Twitter'),
+        ),
+        '#weight' => 1,
+        '#access' => user_access('alter own comstack_notification settings'),
+      ),
+    ),
+  );
+}
+
+/**
+ * Get all of the defined user preferences.
+ */
+function user_preferences_definitions($reset = FALSE) {
+  $preferences = &drupal_static(__FUNCTION__);
+
+  if (!isset($preferences) || $reset) {
+    // Grab from cache.
+    if (!$reset && $cache = cache_get('user_preferences', 'cache')) {
+      $preferences = $cache->data;
+    }
+    // Don't!
+    else {
+      foreach (module_implements('user_preferences') as $module) {
+        $function = $module . '_user_preferences';
+
+        if (function_exists($function)) {
+          $result = $function();
+
+          if (empty($result) || !is_array($result)) {
+            continue;
+          }
+
+          // Add in the module name as an value for each preference.
+          foreach ($result as $key => $value) {
+            $result[$key]['module'] = $module;
+          }
+
+          // Merge in the preferences.
+          $preferences = array_merge_recursive($preferences, $result);
+        }
+
+        // Allow other modules to alter the preferences list.
+        drupal_alter('user_preferences', $preferences);
+        cache_set('user_preferences', $preferences);
+      }
+    }
+  }
+
+  return $preferences;
+}
+
+/**
+ * Get a single users preferences.
+ */
+function user_preferences($uid, $preference = NULL, $reset = FALSE) {
+  $preferences = &drupal_static(__FUNCTION__, array());
+
+  if (!isset($preferences[$uid]) || $reset) {
+    $user_preferences = array();
+    $definitions = user_preferences_definitions();
+    $definitions_names = array();
+
+    // Build up an array of preference names and set default values.
+    foreach ($definitions as $definition_name => $definition) {
+      $definitions_names[] = $definition_name;
+
+      $user_preferences[$definition_name] = $definition['default_value'];
+    }
+
+    // Grab available preferences for this user.
+    $results = db_query('SELECT name, value FROM {user_preferences} WHERE uid = :uid', array(':uid' => $uid));
+    if ($results) {
+      foreach ($results as $record) {
+        $name = $record->name;
+        $value = $record->value;
+
+        // Prevent unrecognised preferences from being included.
+        if (!in_array($name, $definitions_names)) {
+          continue;
+        }
+
+        // Unserialise anything that needs it.
+        if (isset($definitions[$name]['serialize']) && $definitions[$name]['serialize']) {
+          $value = unserialize($value);
+        }
+
+        $user_preferences[$name] = $value;
+      }
+    }
+
+    $preferences[$uid] = $user_preferences;
+  }
+
+  return $preference && isset($preferences[$uid][$preference]) ? $preferences[$uid][$preference] : $preferences[$uid];
+}
+
+/**
+ * Save a user preference.
+ */
+function user_preferences_save($uid, $preferences) {
+  if (empty($preferences)) {
+    return FALSE;
+  }
+
+  // Setup the definitions
+  $definitions_names = array();
+  $definitions = user_preferences_definitions();
+
+  foreach ($definitions as $definition_name => $definition) {
+    $definitions_names[] = $definition_name;
+  }
+
+  // Grab IDs of existing preferences.
+  $existings_user_preferences = array();
+  $results = db_query('SELECT up_id, name FROM {user_preferences} WHERE uid = :uid', array(':uid' => $uid));
+  if ($results) {
+    foreach ($results as $record) {
+      $existings_user_preferences[$record->name] = $record->up_id;
+    }
+  }
+
+  // Construct the query.
+  $insert_query = db_insert('user_preferences')
+    ->fields(array(
+      'name',
+      'uid',
+      'value',
+      'module'
+    ));
+  $insert = FALSE;
+  $updated = FALSE;
+
+  foreach ($preferences as $name => $value) {
+    if (!in_array($name, $definitions_names)) {
+      continue;
+    }
+
+    // Serialise data if need be.
+    if (isset($definitions[$name]['serialize']) && $definitions[$name]['serialize']) {
+      $value = serialize($value);
+    }
+
+    // Insert or update?
+    if (isset($existings_user_preferences[$name])) {
+      $updated = TRUE;
+      db_query('UPDATE {user_preferences} SET value = :value WHERE up_id = :up_id', array(':value' => $value, ':up_id' => $existings_user_preferences[$name]));
+    }
+    else {
+      // Insert en masse.
+      $insert = TRUE;
+      $insert_query->values(array(
+        'name' => $name,
+        'uid' => $uid,
+        'value' => $value,
+        'module' => $definitions[$name]['module']
+      ));
+    }
+  }
+
+  // Execute the updates.
+  if ($insert) {
+    $insert_query->execute();
+    return TRUE;
+  }
+
+  // If we've managed to update a record return TRUE.
+  return $updated;
+}
+
+/**
+ * Save a single user preference.
+ */
+function user_preferences_save_single($uid, $preference_name, $value) {
+  return user_preferences_save($uid, array($preference_name => $value));
+}
+
+/**
+ * Implements hook_modules_enabled().
+ */
+function user_preferences_modules_enabled($modules) {
+  // Rebuild the cached hook_user_preferences definition.
+  user_preferences_definitions(TRUE);
+}
+
+/**
+ * Implements hook_modules_disabled().
+ */
+function user_preferences_modules_disabled($modules) {
+  // Rebuild the cached hook_user_preferences definition.
+  user_preferences_definitions(TRUE);
+}
+
+/**
+ * Implements hook_modules_uninstalled().
+ */
+function user_preferences_modules_uninstalled($modules) {
+  // Remove any preferences defined by these modules.
+  db_query('DELETE FROM {user_preferences} WHERE module IN :modules', array(':modules' => $modules));
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function user_preferences_form_alter(&$form, &$form_state, $form_id) {
+  if (variable_get('user_preferences_auto_add_form_items', TRUE)) {
+    $definitions = user_preferences_definitions();
+
+    // Try and work out the current user id. If we can't then there's no point
+    // continuing.
+    if (isset($form['#user'])) {
+      $uid = $form['#user']->uid;
+    }
+
+    if ($definitions) {
+      $form_items = array();
+
+      // Go through the preferences.
+      foreach ($definitions as $name => $preference) {
+        // If the preference is setup to be added to this form and has a form
+        // item defined, add the preference to the list.
+        if (isset($preference['form_ids']) && in_array($form_id, $preference['form_ids']) && isset($preference['form_item'])) {
+          $form_items[] = $name;
+        }
+      }
+
+      // If there are preferences to add to this form, load the current users
+      // preferences then add the form items.
+      if (!empty($form_items)) {
+        $user_preferences = user_preferences($uid);
+
+        foreach ($form_items as $preference_name) {
+          $preference = $definitions[$preference_name];
+          $preference['form_item']['#default_value'] = $user_preferences[$preference_name];
+          $form["user_preferences__$preference_name"] = $preference['form_item'];
+        }
+
+        // Pass on the preference names which have been added to the form.
+        $form['user_preferences__added_preferences'] = array(
+          '#type' => 'value',
+          '#value' => array(
+            'uid' => $uid,
+            'definitions' => $definitions,
+            'form_items' => $form_items,
+          ),
+        );
+
+        // Add in submit handler which saves our newly added form fields.
+        $form['#submit'][] = 'user_preferences__form_submit';
+      }
+    }
+  }
+}
+
+/**
+ * Form submit handler, save any preferences.
+ */
+function user_preferences__form_submit($form, &$form_state) {
+  if (isset($form_state['values']['user_preferences__added_preferences'])) {
+    $definitions = $form_state['values']['user_preferences__added_preferences']['definitions'];
+    $form_items = $form_state['values']['user_preferences__added_preferences']['form_items'];
+    $preferences_to_save = array();
+
+    foreach ($form_items as $form_item) {
+      $value = $form_state['values']["user_preferences__$form_item"];
+
+      // Take care of checkboxes so we don't have extra data in arrays kicking
+      // about.
+      $form_item_type = $definitions[$form_item]['form_item']['#type'];
+      if ($form_item_type === 'checkboxes' && is_array($value)) {
+        foreach ($value as $k => $v) {
+          if ($v === 0) {
+            unset($value[$k]);
+          }
+        }
+      }
+
+      $preferences_to_save[$form_item] = $value;
+    }
+
+    user_preferences_save($form_state['values']['user_preferences__added_preferences']['uid'], $preferences_to_save);
+  }
+}
