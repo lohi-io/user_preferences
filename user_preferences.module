@@ -18,9 +18,9 @@
  *   happen automatically.
  */
 function user_preferences_definitions($reset = FALSE) {
-  $preferences = &drupal_static(__FUNCTION__);
+  $preferences = &drupal_static(__FUNCTION__, array());
 
-  if (!isset($preferences) || $reset) {
+  if (empty($preferences) || $reset) {
     // Grab from cache.
     if (!$reset && $cache = cache_get('user_preferences', 'cache')) {
       $preferences = $cache->data;
@@ -232,6 +232,33 @@ function user_preferences_modules_enabled($modules) {
 function user_preferences_modules_disabled($modules) {
   // Rebuild the cached hook_user_preferences definition.
   user_preferences_definitions(TRUE);
+}
+
+/**
+ * Implements hook_user_cancel().
+ */
+function user_preferences_user_cancel($edit, $account, $method) {
+  db_delete('user_preferences')
+      ->condition('uid', $account->uid)
+      ->execute();
+}
+
+/**
+ * Implements hook_user_delete().
+ */
+function user_preferences_user_delete($account) {
+  db_delete('user_preferences')
+      ->condition('uid', $account->uid)
+      ->execute();
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function user_preferences_views_api() {
+  return array(
+    'api' => '3.0',
+  );
 }
 
 /**

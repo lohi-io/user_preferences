@@ -29,6 +29,9 @@
  *   - form_item: (optional) If adding this preference to a form, the form item
  *     as per the standard Drupal Form API. The default value will be passed in
  *     automatically. http://preview.tinyurl.com/n7d9arj
+ *   - views_handlers: (optional) Views handler definitions to add in, right
+ *     now there's the one supplied preference view handler for Boolean
+ *     preference types.
  */
 function hook_user_preferences() {
   return array(
@@ -53,6 +56,33 @@ function hook_user_preferences() {
         ),
         '#weight' => 1,
         '#access' => user_access('alter own comstack_notification settings'),
+      ),
+    ),
+    'comstack_pm_enabled' => array(
+      'title' => t('Comstack Private Messaging'),
+      'default_value' => 1,
+      'form_ids' => array('user_profile_form'),
+      // The form_item will pass whatever on to the form specified in the
+      // previous index.
+      'form_item' => array(
+        '#title' => t('Enabled private messaging?'),
+        '#type' => 'checkbox',
+        '#weight' => 1,
+        '#access' => user_access('alter own comstack_notification settings'),
+      ),
+      // The views handler information to pass to hook_views_data().
+      'views_handlers' => array(
+        // Following index can be named anything sensible.
+        'comstack_pm_enabled' => array(
+          'title' => t('Comstack Private Messaging enabled'),
+          'help' => t('Access the preference information for whether or not the user in this row has enabled Comstack private messaging.'),
+          // Preference name must match the preference name (duh) and be a
+          // valid machine name string.
+          'filter' => array(
+            'handler' => 'user_preferences_handler_filter_boolean',
+            'preference_name' => 'comstack_pm_enabled',
+          ),
+        ),
       ),
     ),
   );
