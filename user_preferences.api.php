@@ -29,6 +29,9 @@
  *   - form_item: (optional) If adding this preference to a form, the form item
  *     as per the standard Drupal Form API. The default value will be passed in
  *     automatically. http://preview.tinyurl.com/n7d9arj
+ *   - add_to_javascript: (optional) Boolean value that if true will mean that
+ *     this preference will be added to Drupal.settings.userPreferences in
+ *     hook_init().
  *   - views_handlers: (optional) Views handler definitions to add in, right
  *     now there's the one supplied preference view handler for Boolean
  *     preference types.
@@ -70,6 +73,7 @@ function hook_user_preferences() {
         '#weight' => 1,
         '#access' => user_access('alter own comstack_notification settings'),
       ),
+      'add_to_javascript' => TRUE,
       // The views handler information to pass to hook_views_data().
       'views_handlers' => array(
         // Following index can be named anything sensible.

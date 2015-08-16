@@ -73,7 +73,12 @@ function user_preferences_definitions($reset = FALSE) {
  * @return
  *   An array of key/value pairs of user preferences.
  */
-function user_preferences($uid, $preference = NULL, $reset = FALSE) {
+function user_preferences($uid = NULL, $preference = NULL, $reset = FALSE) {
+  if (!$uid) {
+    global $user;
+    $uid = $user->uid;
+  }
+
   $preferences = &drupal_static(__FUNCTION__, array());
 
   if (!isset($preferences[$uid]) || $reset) {
@@ -250,6 +255,44 @@ function user_preferences_user_delete($account) {
   db_delete('user_preferences')
       ->condition('uid', $account->uid)
       ->execute();
+}
+
+/**
+ * Implements hook_init().
+ *
+ * Add any preference values to Drupal.settings.userPreferences.
+ */
+function user_preferences_init() {
+  global $user;
+
+  // Do nothing for anon.
+  if (!$user->uid) {
+    return;
+  }
+
+  // Get and iterate through each definition.
+  $definitions = user_preferences_definitions();
+  if ($definitions) {
+    $settings = array();
+    $preferences = NULL;
+
+    foreach ($definitions as $name => $preference) {
+      if (isset($preference['add_to_javascript']) && $preference['add_to_javascript']) {
+        // If we've not grabbed the users preferences, do it.
+        if (is_null($preferences)) {
+          $preferences = user_preferences();
+        }
+
+        if (isset($preferences[$name])) {
+          $settings[$name] = $preferences[$name];
+        }
+      }
+    }
+
+    if (!empty($settings)) {
+      drupal_add_js(array('userPreferences' => $settings), 'setting');
+    }
+  }
 }
 
 /**
