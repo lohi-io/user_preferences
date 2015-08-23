@@ -309,7 +309,7 @@ function user_preferences_views_api() {
  */
 function user_preferences_modules_uninstalled($modules) {
   // Remove any preferences defined by these modules.
-  db_query('DELETE FROM {user_preferences} WHERE module IN :modules', array(':modules' => $modules));
+  db_query('DELETE FROM {user_preferences} WHERE module IN (:modules)', array(':modules' => $modules));
 }
 
 /**
