@@ -64,7 +64,7 @@ function user_preferences_views_data() {
     // Loop through and add in any definitions which have a views handler
     // defined.
     foreach ($definitions as $name => $definition) {
-      if ($definition['views_handlers']) {
+      if (!empty($definition['views_handlers'])) {
         foreach ($definition['views_handlers'] as $handler_name => $handler) {
           $data['user_preferences'][$handler_name] = $handler;
         }
