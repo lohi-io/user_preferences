@@ -3,6 +3,9 @@
 /**
  * @file
  * Contains user_preferences_handler_filter_boolean
+ *
+ * Note this handler may not behave as expected if being used with MySQL
+ * versions under 5.5.40.
  */
 
 class user_preferences_handler_filter_boolean extends views_handler_filter_boolean_operator {
